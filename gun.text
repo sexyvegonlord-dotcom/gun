@@ -209,7 +209,7 @@ local function startOrbit(targetPlayer)
 	savedCFrame = HumanoidRootPart.CFrame
 	local startTime = tick()
 	local duration = 3
-	local heightOffset = -4 -- how far under them
+	local heightOffset = -7 -- how far under them
 	
 	orbitConnection = RunService.Heartbeat:Connect(function()
 		local elapsed = tick() - startTime
