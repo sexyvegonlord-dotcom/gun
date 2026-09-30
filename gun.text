@@ -1,1 +1,233 @@
+-- Orbit GUI Script (Personal Use) - Auto Cleanup Version
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
+-- Remove old GUI if it exists
+local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("OrbitGUI")
+if oldGui then
+	oldGui:Destroy()
+end
+
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- GUI Creation
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "OrbitGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 280, 0, 160)
+MainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
+TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -70, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Orbit Tool"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 16
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Name = "Minimize"
+MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+MinimizeBtn.Position = UDim2.new(1, -36, 0, 2)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+MinimizeBtn.Text = "−"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 20
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Parent = TitleBar
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinimizeBtn
+
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "Content"
+ContentFrame.Size = UDim2.new(1, -20, 1, -48)
+ContentFrame.Position = UDim2.new(0, 10, 0, 40)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+local NameBox = Instance.new("TextBox")
+NameBox.Name = "NameInput"
+NameBox.Size = UDim2.new(1, 0, 0, 36)
+NameBox.Position = UDim2.new(0, 0, 0, 0)
+NameBox.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+NameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+NameBox.PlaceholderText = "Enter player name..."
+NameBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 160)
+NameBox.Text = ""
+NameBox.TextSize = 14
+NameBox.Font = Enum.Font.Gotham
+NameBox.ClearTextOnFocus = false
+NameBox.Parent = ContentFrame
+
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 8)
+BoxCorner.Parent = NameBox
+
+local OrbitBtn = Instance.new("TextButton")
+OrbitBtn.Name = "OrbitButton"
+OrbitBtn.Size = UDim2.new(1, 0, 0, 40)
+OrbitBtn.Position = UDim2.new(0, 0, 0, 50)
+OrbitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+OrbitBtn.Text = "Orbit"
+OrbitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OrbitBtn.TextSize = 16
+OrbitBtn.Font = Enum.Font.GothamBold
+OrbitBtn.Parent = ContentFrame
+
+local OrbitCorner = Instance.new("UICorner")
+OrbitCorner.CornerRadius = UDim.new(0, 8)
+OrbitCorner.Parent = OrbitBtn
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 0, 20)
+StatusLabel.Position = UDim2.new(0, 0, 0, 100)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = ""
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+StatusLabel.TextSize = 12
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Parent = ContentFrame
+
+-- Minimize / Maximize
+local isMinimized = false
+local originalSize = MainFrame.Size
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	if isMinimized then
+		ContentFrame.Visible = false
+		MainFrame.Size = UDim2.new(0, 280, 0, 32)
+		MinimizeBtn.Text = "+"
+	else
+		ContentFrame.Visible = true
+		MainFrame.Size = originalSize
+		MinimizeBtn.Text = "−"
+	end
+end)
+
+-- Helper: Find player by partial name
+local function findPlayer(name)
+	name = string.lower(name)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and string.find(string.lower(player.Name), name, 1, true) then
+			return player
+		end
+	end
+	return nil
+end
+
+-- Orbit Logic
+local isOrbiting = false
+
+local function startOrbit(targetPlayer)
+	if isOrbiting then return end
+	
+	local targetChar = targetPlayer.Character
+	if not targetChar then
+		StatusLabel.Text = "Target has no character"
+		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		return
+	end
+	
+	local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+	if not targetHRP then
+		StatusLabel.Text = "Target has no HumanoidRootPart"
+		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		return
+	end
+	
+	isOrbiting = true
+	OrbitBtn.Text = "Orbiting..."
+	OrbitBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 110)
+	StatusLabel.Text = "Orbiting " .. targetPlayer.Name
+	StatusLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+	
+	local originalCFrame = HumanoidRootPart.CFrame
+	local startTime = tick()
+	local duration = 3
+	local radius = 4
+	local heightOffset = -3
+	local speed = 4
+	
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		local elapsed = tick() - startTime
+		
+		if elapsed >= duration or not targetHRP or not targetHRP.Parent then
+			connection:Disconnect()
+			HumanoidRootPart.CFrame = originalCFrame
+			isOrbiting = false
+			OrbitBtn.Text = "Orbit"
+			OrbitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+			StatusLabel.Text = "Returned to original location"
+			StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+			return
+		end
+		
+		local angle = elapsed * speed * math.pi * 2
+		local offset = Vector3.new(
+			math.cos(angle) * radius,
+			heightOffset,
+			math.sin(angle) * radius
+		)
+		
+		HumanoidRootPart.CFrame = CFrame.new(targetHRP.Position + offset)
+	end)
+end
+
+OrbitBtn.MouseButton1Click:Connect(function()
+	if isOrbiting then return end
+	
+	local input = NameBox.Text
+	if input == "" then
+		StatusLabel.Text = "Enter a name first"
+		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		return
+	end
+	
+	local target = findPlayer(input)
+	if not target then
+		StatusLabel.Text = "Player not found"
+		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		return
+	end
+	
+	startOrbit(target)
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+	Character = newChar
+	HumanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
