@@ -148,7 +148,7 @@ local function findPlayer(name)
 	return nil
 end
 
--- Orbit Logic
+-- Stay Underneath Logic
 local isOrbiting = false
 
 local function startOrbit(targetPlayer)
@@ -169,17 +169,15 @@ local function startOrbit(targetPlayer)
 	end
 	
 	isOrbiting = true
-	OrbitBtn.Text = "Orbiting..."
+	OrbitBtn.Text = "Underneath..."
 	OrbitBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 110)
-	StatusLabel.Text = "Orbiting " .. targetPlayer.Name
+	StatusLabel.Text = "Under " .. targetPlayer.Name
 	StatusLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
 	
 	local originalCFrame = HumanoidRootPart.CFrame
 	local startTime = tick()
 	local duration = 3
-	local radius = 4
-	local heightOffset = -3
-	local speed = 4
+	local heightOffset = -4 -- how far under them you stay
 	
 	local connection
 	connection = RunService.Heartbeat:Connect(function()
@@ -196,14 +194,8 @@ local function startOrbit(targetPlayer)
 			return
 		end
 		
-		local angle = elapsed * speed * math.pi * 2
-		local offset = Vector3.new(
-			math.cos(angle) * radius,
-			heightOffset,
-			math.sin(angle) * radius
-		)
-		
-		HumanoidRootPart.CFrame = CFrame.new(targetHRP.Position + offset)
+		-- Stay directly underneath (no spinning)
+		HumanoidRootPart.CFrame = CFrame.new(targetHRP.Position + Vector3.new(0, heightOffset, 0))
 	end)
 end
 
