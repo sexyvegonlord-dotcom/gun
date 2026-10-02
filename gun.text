@@ -1,4 +1,4 @@
--- Orbit GUI Script - Adjustable Depth + Orientation
+-- Orbit GUI Script - Adjustable Depth + Continuous Facing Target
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -9,212 +9,217 @@ if oldGui then
 	oldGui:Destroy()
 end
 
+-- Character
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
--- SETTINGS
+-- Settings
 local orbitDepth = -4.0
 local depthStep = 0.1
 local faceTarget = false
 
+-- Orbit state
+local isOrbiting = false
+local orbitConnection = nil
+local savedCFrame = nil
+local currentTarget = nil
+
+--------------------------------------------------
 -- GUI
+--------------------------------------------------
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "OrbitGUI"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 330)
-MainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -165)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = MainFrame
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 10)
+Corner.Parent = MainFrame
 
--- TITLE
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 32)
-TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
+--------------------------------------------------
+-- Title
+--------------------------------------------------
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = TitleBar
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -50, 0, 40)
+Title.Position = UDim2.new(0, 10, 0, 5)
+Title.BackgroundTransparency = 1
+Title.Text = "Orbit"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 22
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -70, 1, 0)
-TitleLabel.Position = UDim2.new(0, 12, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "Orbit Tool"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 16
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = TitleBar
+--------------------------------------------------
+-- Minimize Button
+--------------------------------------------------
 
 local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
-MinimizeBtn.Position = UDim2.new(1, -36, 0, 2)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
-MinimizeBtn.Text = "−"
+MinimizeBtn.Size = UDim2.new(0, 35, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -42, 0, 8)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+MinimizeBtn.Text = "-"
 MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeBtn.TextSize = 20
 MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Parent = TitleBar
+MinimizeBtn.Parent = MainFrame
 
 local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0, 6)
 MinCorner.Parent = MinimizeBtn
 
--- CONTENT
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -20, 1, -48)
-ContentFrame.Position = UDim2.new(0, 10, 0, 40)
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
+--------------------------------------------------
+-- Name Box
+--------------------------------------------------
 
--- NAME BOX
 local NameBox = Instance.new("TextBox")
-NameBox.Size = UDim2.new(1, 0, 0, 36)
-NameBox.Position = UDim2.new(0, 0, 0, 0)
-NameBox.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-NameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-NameBox.PlaceholderText = "Enter player name..."
-NameBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 160)
+NameBox.Size = UDim2.new(1, -20, 0, 40)
+NameBox.Position = UDim2.new(0, 10, 0, 55)
+NameBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+NameBox.PlaceholderText = "Enter player name"
 NameBox.Text = ""
-NameBox.TextSize = 14
+NameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+NameBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+NameBox.TextSize = 16
 NameBox.Font = Enum.Font.Gotham
-NameBox.ClearTextOnFocus = false
-NameBox.Parent = ContentFrame
+NameBox.Parent = MainFrame
 
-local BoxCorner = Instance.new("UICorner")
-BoxCorner.CornerRadius = UDim.new(0, 8)
-BoxCorner.Parent = NameBox
+local NameCorner = Instance.new("UICorner")
+NameCorner.CornerRadius = UDim.new(0, 6)
+NameCorner.Parent = NameBox
 
--- ORBIT BUTTON
+--------------------------------------------------
+-- Orbit Button
+--------------------------------------------------
+
 local OrbitBtn = Instance.new("TextButton")
-OrbitBtn.Size = UDim2.new(1, 0, 0, 40)
-OrbitBtn.Position = UDim2.new(0, 0, 0, 50)
-OrbitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-OrbitBtn.Text = "Orbit"
+OrbitBtn.Size = UDim2.new(0.48, -5, 0, 40)
+OrbitBtn.Position = UDim2.new(0, 10, 0, 105)
+OrbitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+OrbitBtn.Text = "ORBIT"
 OrbitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 OrbitBtn.TextSize = 16
 OrbitBtn.Font = Enum.Font.GothamBold
-OrbitBtn.Parent = ContentFrame
+OrbitBtn.Parent = MainFrame
 
 local OrbitCorner = Instance.new("UICorner")
-OrbitCorner.CornerRadius = UDim.new(0, 8)
+OrbitCorner.CornerRadius = UDim.new(0, 6)
 OrbitCorner.Parent = OrbitBtn
 
--- STOP BUTTON
+--------------------------------------------------
+-- Stop Button
+--------------------------------------------------
+
 local StopBtn = Instance.new("TextButton")
-StopBtn.Size = UDim2.new(1, 0, 0, 40)
-StopBtn.Position = UDim2.new(0, 0, 0, 100)
-StopBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-StopBtn.Text = "Stop Orbit"
+StopBtn.Size = UDim2.new(0.48, -5, 0, 40)
+StopBtn.Position = UDim2.new(0.52, 0, 0, 105)
+StopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+StopBtn.Text = "STOP"
 StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StopBtn.TextSize = 16
 StopBtn.Font = Enum.Font.GothamBold
-StopBtn.Parent = ContentFrame
+StopBtn.Parent = MainFrame
 
 local StopCorner = Instance.new("UICorner")
-StopCorner.CornerRadius = UDim.new(0, 8)
+StopCorner.CornerRadius = UDim.new(0, 6)
 StopCorner.Parent = StopBtn
 
--- DEPTH LABEL
+--------------------------------------------------
+-- Depth Label
+--------------------------------------------------
+
 local DepthLabel = Instance.new("TextLabel")
-DepthLabel.Size = UDim2.new(1, 0, 0, 25)
-DepthLabel.Position = UDim2.new(0, 0, 0, 148)
+DepthLabel.Size = UDim2.new(1, -20, 0, 30)
+DepthLabel.Position = UDim2.new(0, 10, 0, 155)
 DepthLabel.BackgroundTransparency = 1
-DepthLabel.Text = "Depth: -4.0"
+DepthLabel.Text = "Depth: " .. string.format("%.1f", orbitDepth)
 DepthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-DepthLabel.TextSize = 14
+DepthLabel.TextSize = 17
 DepthLabel.Font = Enum.Font.GothamBold
-DepthLabel.Parent = ContentFrame
+DepthLabel.Parent = MainFrame
 
--- DEPTH MINUS
+--------------------------------------------------
+-- Depth Minus
+--------------------------------------------------
+
 local DepthMinus = Instance.new("TextButton")
-DepthMinus.Size = UDim2.new(0, 80, 0, 32)
-DepthMinus.Position = UDim2.new(0, 0, 0, 177)
-DepthMinus.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-DepthMinus.Text = "− 0.1"
+DepthMinus.Size = UDim2.new(0.48, -5, 0, 40)
+DepthMinus.Position = UDim2.new(0, 10, 0, 190)
+DepthMinus.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+DepthMinus.Text = "-0.1"
 DepthMinus.TextColor3 = Color3.fromRGB(255, 255, 255)
-DepthMinus.TextSize = 14
+DepthMinus.TextSize = 16
 DepthMinus.Font = Enum.Font.GothamBold
-DepthMinus.Parent = ContentFrame
+DepthMinus.Parent = MainFrame
 
-local MinusCorner = Instance.new("UICorner")
-MinusCorner.CornerRadius = UDim.new(0, 7)
-MinusCorner.Parent = DepthMinus
+local DepthMinusCorner = Instance.new("UICorner")
+DepthMinusCorner.CornerRadius = UDim.new(0, 6)
+DepthMinusCorner.Parent = DepthMinus
 
--- DEPTH PLUS
+--------------------------------------------------
+-- Depth Plus
+--------------------------------------------------
+
 local DepthPlus = Instance.new("TextButton")
-DepthPlus.Size = UDim2.new(0, 80, 0, 32)
-DepthPlus.Position = UDim2.new(1, -80, 0, 177)
-DepthPlus.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-DepthPlus.Text = "+ 0.1"
+DepthPlus.Size = UDim2.new(0.48, -5, 0, 40)
+DepthPlus.Position = UDim2.new(0.52, 0, 0, 190)
+DepthPlus.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+DepthPlus.Text = "+0.1"
 DepthPlus.TextColor3 = Color3.fromRGB(255, 255, 255)
-DepthPlus.TextSize = 14
+DepthPlus.TextSize = 16
 DepthPlus.Font = Enum.Font.GothamBold
-DepthPlus.Parent = ContentFrame
+DepthPlus.Parent = MainFrame
 
-local PlusCorner = Instance.new("UICorner")
-PlusCorner.CornerRadius = UDim.new(0, 7)
-PlusCorner.Parent = DepthPlus
+local DepthPlusCorner = Instance.new("UICorner")
+DepthPlusCorner.CornerRadius = UDim.new(0, 6)
+DepthPlusCorner.Parent = DepthPlus
 
--- ORIENTATION BUTTON
+--------------------------------------------------
+-- Orientation Button
+--------------------------------------------------
+
 local OrientationBtn = Instance.new("TextButton")
-OrientationBtn.Size = UDim2.new(1, 0, 0, 35)
-OrientationBtn.Position = UDim2.new(0, 0, 0, 217)
-OrientationBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+OrientationBtn.Size = UDim2.new(1, -20, 0, 40)
+OrientationBtn.Position = UDim2.new(0, 10, 0, 240)
+OrientationBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
 OrientationBtn.Text = "Orientation: Upright"
 OrientationBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-OrientationBtn.TextSize = 13
+OrientationBtn.TextSize = 16
 OrientationBtn.Font = Enum.Font.GothamBold
-OrientationBtn.Parent = ContentFrame
+OrientationBtn.Parent = MainFrame
 
 local OrientationCorner = Instance.new("UICorner")
-OrientationCorner.CornerRadius = UDim.new(0, 8)
+OrientationCorner.CornerRadius = UDim.new(0, 6)
 OrientationCorner.Parent = OrientationBtn
 
--- STATUS
+--------------------------------------------------
+-- Status
+--------------------------------------------------
+
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0, 260)
+StatusLabel.Size = UDim2.new(1, -20, 0, 35)
+StatusLabel.Position = UDim2.new(0, 10, 0, 285)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = ""
-StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
-StatusLabel.TextSize = 12
+StatusLabel.Text = "Ready"
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatusLabel.TextSize = 14
 StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.Parent = ContentFrame
+StatusLabel.Parent = MainFrame
 
--- MINIMIZE
-local isMinimized = false
-local originalSize = MainFrame.Size
+--------------------------------------------------
+-- Find Player
+--------------------------------------------------
 
-MinimizeBtn.MouseButton1Click:Connect(function()
-	isMinimized = not isMinimized
-
-	if isMinimized then
-		ContentFrame.Visible = false
-		MainFrame.Size = UDim2.new(0, 280, 0, 32)
-		MinimizeBtn.Text = "+"
-	else
-		ContentFrame.Visible = true
-		MainFrame.Size = originalSize
-		MinimizeBtn.Text = "−"
-	end
-end)
-
--- FIND PLAYER
 local function findPlayer(name)
 	name = string.lower(name)
 
@@ -229,160 +234,328 @@ local function findPlayer(name)
 	return nil
 end
 
--- UPDATE DEPTH DISPLAY
-local function updateDepth()
-	DepthLabel.Text = string.format("Depth: %.1f", orbitDepth)
+--------------------------------------------------
+-- Make Target HRP Big
+--------------------------------------------------
+
+local function makeTargetHRPBig(targetPlayer)
+	if not targetPlayer then
+		return false
+	end
+
+	local targetCharacter = targetPlayer.Character
+	if not targetCharacter then
+		return false
+	end
+
+	local targetHRP = targetCharacter:FindFirstChild("HumanoidRootPart")
+	if not targetHRP then
+		return false
+	end
+
+	targetHRP.Size = Vector3.new(15, 15, 15)
+	targetHRP.Transparency = 0.5
+
+	return true
 end
 
--- DEPTH CONTROLS
-DepthMinus.MouseButton1Click:Connect(function()
-	orbitDepth -= depthStep
-	orbitDepth = math.round(orbitDepth * 10) / 10
-	updateDepth()
-end)
+--------------------------------------------------
+-- Make Held Tool Hitbox Big
+--------------------------------------------------
 
-DepthPlus.MouseButton1Click:Connect(function()
-	orbitDepth += depthStep
-	orbitDepth = math.round(orbitDepth * 10) / 10
-	updateDepth()
-end)
+local function makeHeldToolBig()
+	local char = LocalPlayer.Character
 
--- ORIENTATION
-OrientationBtn.MouseButton1Click:Connect(function()
-	faceTarget = not faceTarget
-
-	if faceTarget then
-		OrientationBtn.Text = "Orientation: Facing Target"
-		OrientationBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 100)
-	else
-		OrientationBtn.Text = "Orientation: Upright"
-		OrientationBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+	if not char then
+		return false
 	end
-end)
 
--- ORBIT
-local isOrbiting = false
-local orbitConnection = nil
-local savedCFrame = nil
+	local tool = char:FindFirstChildOfClass("Tool")
+
+	if not tool then
+		return false
+	end
+
+	-- Try actual Hitbox first
+	local hitbox = tool:FindFirstChild("Hitbox")
+
+	if hitbox and hitbox:IsA("BasePart") then
+		hitbox.Size = Vector3.new(15, 15, 15)
+		hitbox.Transparency = 0.5
+		return true
+	end
+
+	-- Fallback to Handle
+	local fallback =
+		tool:FindFirstChild("Handle")
+		or tool:FindFirstChildWhichIsA("BasePart")
+
+	if fallback and fallback:IsA("BasePart") then
+		fallback.Size = Vector3.new(15, 15, 15)
+		fallback.Transparency = 0.5
+		return true
+	end
+
+	return false
+end
+
+--------------------------------------------------
+-- Stop Orbit
+--------------------------------------------------
 
 local function stopOrbit()
+	isOrbiting = false
+	currentTarget = nil
+
 	if orbitConnection then
 		orbitConnection:Disconnect()
 		orbitConnection = nil
 	end
 
-	if savedCFrame and HumanoidRootPart then
+	-- Return character to original position/orientation
+	if HumanoidRootPart and HumanoidRootPart.Parent and savedCFrame then
 		HumanoidRootPart.CFrame = savedCFrame
 	end
 
-	isOrbiting = false
+	savedCFrame = nil
 
-	OrbitBtn.Text = "Orbit"
-	OrbitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-
-	StatusLabel.Text = "Stopped / Returned"
-	StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+	StatusLabel.Text = "Stopped"
+	StatusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
 end
+
+--------------------------------------------------
+-- Start Orbit
+--------------------------------------------------
 
 local function startOrbit(targetPlayer)
 	if isOrbiting then
-		return
+		stopOrbit()
 	end
 
-	local targetChar = targetPlayer.Character
-
-	if not targetChar then
-		StatusLabel.Text = "Target has no character"
-		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-		return
-	end
-
-	local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
-
-	if not targetHRP then
-		StatusLabel.Text = "Target has no HumanoidRootPart"
-		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-		return
-	end
-
-	isOrbiting = true
-
-	OrbitBtn.Text = "Underneath..."
-	OrbitBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 110)
-
-	StatusLabel.Text = "Under " .. targetPlayer.Name
-	StatusLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
-
-	savedCFrame = HumanoidRootPart.CFrame
-
-	local startTime = tick()
-	local duration = 3
-
-	orbitConnection = RunService.Heartbeat:Connect(function()
-		local elapsed = tick() - startTime
-
-		if elapsed >= duration
-			or not targetHRP
-			or not targetHRP.Parent
-			or not HumanoidRootPart
-			or not HumanoidRootPart.Parent then
-
-			stopOrbit()
-			return
-		end
-
-		-- Position underneath target
-		local position = targetHRP.Position + Vector3.new(0, orbitDepth, 0)
-
-		if faceTarget then
-			-- Tilt upward so your character faces the target above
-			HumanoidRootPart.CFrame = CFrame.lookAt(
-				position,
-				targetHRP.Position
-			)
-		else
-			-- Stay vertically upright
-			HumanoidRootPart.CFrame =
-				CFrame.new(position) *
-				CFrame.Angles(0, targetHRP.Orientation.Y * math.pi / 180, 0)
-		end
-	end)
-end
-
--- ORBIT BUTTON
-OrbitBtn.MouseButton1Click:Connect(function()
-	if isOrbiting then
-		return
-	end
-
-	local input = NameBox.Text
-
-	if input == "" then
-		StatusLabel.Text = "Enter a name first"
-		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-		return
-	end
-
-	local target = findPlayer(input)
-
-	if not target then
+	if not targetPlayer then
 		StatusLabel.Text = "Player not found"
 		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
 		return
 	end
 
-	startOrbit(target)
+	local targetCharacter = targetPlayer.Character
+
+	if not targetCharacter then
+		StatusLabel.Text = "Target has no character"
+		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		return
+	end
+
+	local targetHRP = targetCharacter:FindFirstChild("HumanoidRootPart")
+
+	if not targetHRP then
+		StatusLabel.Text = "Target HRP not found"
+		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		return
+	end
+
+	-- Refresh own character
+	Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+	-- Save original position + orientation
+	savedCFrame = HumanoidRootPart.CFrame
+
+	currentTarget = targetPlayer
+	isOrbiting = true
+
+	-- Make target HRP 15x15x15
+	makeTargetHRPBig(targetPlayer)
+
+	-- Make held tool Hitbox 15x15x15
+	makeHeldToolBig()
+
+	StatusLabel.Text = "Orbiting " .. targetPlayer.Name
+	StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
+
+	local startTime = tick()
+	local duration = 3
+
+	orbitConnection = RunService.Heartbeat:Connect(function()
+		if not isOrbiting then
+			return
+		end
+
+		-- Make sure target still exists
+		if not currentTarget or not currentTarget.Character then
+			stopOrbit()
+			return
+		end
+
+		targetCharacter = currentTarget.Character
+		targetHRP = targetCharacter:FindFirstChild("HumanoidRootPart")
+
+		if not targetHRP then
+			stopOrbit()
+			return
+		end
+
+		--------------------------------------------------
+		-- Keep Target HRP Big
+		--------------------------------------------------
+
+		targetHRP.Size = Vector3.new(15, 15, 15)
+		targetHRP.Transparency = 0.5
+
+		--------------------------------------------------
+		-- Keep Held Tool Big
+		--------------------------------------------------
+
+		makeHeldToolBig()
+
+		--------------------------------------------------
+		-- Orbit Position
+		--------------------------------------------------
+
+		local position =
+			targetHRP.Position
+			+ Vector3.new(0, orbitDepth, 0)
+
+		--------------------------------------------------
+		-- Orientation
+		--------------------------------------------------
+
+		if faceTarget then
+
+			-- Face directly toward the target.
+			-- This is recalculated continuously while orbiting.
+			local lookCFrame =
+				CFrame.lookAt(
+					position,
+					targetHRP.Position
+				)
+
+			HumanoidRootPart.CFrame = lookCFrame
+
+		else
+
+			-- Upright orientation while underneath target
+			HumanoidRootPart.CFrame =
+				CFrame.new(position)
+				* CFrame.Angles(
+					0,
+					targetHRP.Orientation.Y * math.pi / 180,
+					0
+				)
+
+		end
+
+		--------------------------------------------------
+		-- Stop After 3 Seconds
+		--------------------------------------------------
+
+		if tick() - startTime >= duration then
+			stopOrbit()
+		end
+	end)
+end
+
+--------------------------------------------------
+-- Buttons
+--------------------------------------------------
+
+OrbitBtn.MouseButton1Click:Connect(function()
+	local targetPlayer = findPlayer(NameBox.Text)
+
+	if not targetPlayer then
+		StatusLabel.Text = "Player not found"
+		StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		return
+	end
+
+	startOrbit(targetPlayer)
 end)
 
--- STOP
 StopBtn.MouseButton1Click:Connect(function()
 	if isOrbiting then
 		stopOrbit()
+	else
+		StatusLabel.Text = "Not orbiting"
 	end
 end)
 
--- CHARACTER RESPAWN
-LocalPlayer.CharacterAdded:Connect(function(newChar)
-	Character = newChar
-	HumanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+--------------------------------------------------
+-- Depth Controls
+--------------------------------------------------
+
+DepthMinus.MouseButton1Click:Connect(function()
+	orbitDepth = orbitDepth - depthStep
+	DepthLabel.Text = "Depth: " .. string.format("%.1f", orbitDepth)
+end)
+
+DepthPlus.MouseButton1Click:Connect(function()
+	orbitDepth = orbitDepth + depthStep
+	DepthLabel.Text = "Depth: " .. string.format("%.1f", orbitDepth)
+end)
+
+--------------------------------------------------
+-- Orientation Toggle
+--------------------------------------------------
+
+OrientationBtn.MouseButton1Click:Connect(function()
+	faceTarget = not faceTarget
+
+	if faceTarget then
+		OrientationBtn.Text = "Orientation: Facing Target"
+		OrientationBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+	else
+		OrientationBtn.Text = "Orientation: Upright"
+		OrientationBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+	end
+end)
+
+--------------------------------------------------
+-- Minimize
+--------------------------------------------------
+
+local minimized = false
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+
+	if minimized then
+		for _, child in ipairs(MainFrame:GetChildren()) do
+			if child ~= Title
+				and child ~= MinimizeBtn
+				and child:IsA("GuiObject") then
+
+				child.Visible = false
+			end
+		end
+
+		MainFrame.Size = UDim2.new(0, 280, 0, 50)
+		MinimizeBtn.Text = "+"
+	else
+		MainFrame.Size = UDim2.new(0, 280, 0, 330)
+
+		for _, child in ipairs(MainFrame:GetChildren()) do
+			if child ~= Title
+				and child ~= MinimizeBtn
+				and child:IsA("GuiObject") then
+
+				child.Visible = true
+			end
+		end
+
+		MinimizeBtn.Text = "-"
+	end
+end)
+
+--------------------------------------------------
+-- Character Respawn
+--------------------------------------------------
+
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+	Character = newCharacter
+	HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+
+	-- If respawned, cancel orbit
+	if isOrbiting then
+		stopOrbit()
+	end
 end)
