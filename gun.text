@@ -1,7 +1,8 @@
 -- Orbit GUI Script
--- P Key = Toggle Orbit
--- P again = Stop Orbit + Return to EXACT starting position
--- Orbit does NOT automatically end
+-- P = Start Orbit
+-- P again = Stop + Return to EXACT Starting Position
+-- Starting Depth = 8.0
+-- No automatic orbit timeout
 -- Facing Target = continuously face target
 -- Target HRP = 15x15x15
 -- Held Tool Hitbox = 15x15x15
@@ -39,7 +40,7 @@ local HumanoidRootPart =
 -- SETTINGS
 --------------------------------------------------
 
-local orbitDepth = -4
+local orbitDepth = 8.0
 local depthStep = 0.1
 
 local faceTarget = false
@@ -51,7 +52,8 @@ local faceTarget = false
 local isOrbiting = false
 local orbitConnection = nil
 
--- EXACT CFrame from BEFORE orbit starts
+-- Permanent backup of the position from the
+-- moment the current orbit started.
 local savedCFrame = nil
 
 local currentTarget = nil
@@ -395,10 +397,6 @@ local function makeHeldToolBig()
 		return false
 	end
 
-	--------------------------------------------------
-	-- ACTUAL HITBOX
-	--------------------------------------------------
-
 	local hitbox =
 		tool:FindFirstChild("Hitbox")
 
@@ -411,10 +409,6 @@ local function makeHeldToolBig()
 
 		return true
 	end
-
-	--------------------------------------------------
-	-- FALLBACK
-	--------------------------------------------------
 
 	local fallback =
 		tool:FindFirstChild("Handle")
@@ -434,17 +428,55 @@ local function makeHeldToolBig()
 end
 
 --------------------------------------------------
+-- RETURN TO SAVED POSITION
+--------------------------------------------------
+
+local function returnToSavedPosition()
+
+	if not savedCFrame then
+		return false
+	end
+
+	if not HumanoidRootPart then
+		return false
+	end
+
+	if not HumanoidRootPart.Parent then
+		return false
+	end
+
+	--------------------------------------------------
+	-- FIRST RESTORE
+	--------------------------------------------------
+
+	HumanoidRootPart.CFrame = savedCFrame
+
+	--------------------------------------------------
+	-- STOP VELOCITY
+	--------------------------------------------------
+
+	HumanoidRootPart.AssemblyLinearVelocity =
+		Vector3.zero
+
+	HumanoidRootPart.AssemblyAngularVelocity =
+		Vector3.zero
+
+	return true
+end
+
+--------------------------------------------------
 -- STOP ORBIT
 --------------------------------------------------
 
 local function stopOrbit()
 
+	--------------------------------------------------
+	-- IMPORTANT:
+	-- STOP THE ORBIT LOOP BEFORE RESTORING POSITION
+	--------------------------------------------------
+
 	isOrbiting = false
 	currentTarget = nil
-
-	--------------------------------------------------
-	-- STOP LOOP FIRST
-	--------------------------------------------------
 
 	if orbitConnection then
 
@@ -454,30 +486,76 @@ local function stopOrbit()
 	end
 
 	--------------------------------------------------
-	-- RETURN TO EXACT STARTING CFRAME
+	-- RESTORE SAVED POSITION
 	--------------------------------------------------
 
-	if
-		savedCFrame
-		and HumanoidRootPart
-		and HumanoidRootPart.Parent
-	then
+	local returned =
+		returnToSavedPosition()
 
-		-- Restore the EXACT CFrame from
-		-- immediately before the first P
-		HumanoidRootPart.CFrame = savedCFrame
+	--------------------------------------------------
+	-- SECOND RESTORE ON NEXT HEARTBEAT
+	-- Helps if another LOCAL movement system immediately
+	-- changes the character after the first restore.
+	--------------------------------------------------
+
+	if returned then
+
+		task.defer(function()
+
+			if HumanoidRootPart
+				and HumanoidRootPart.Parent
+				and savedCFrame
+			then
+
+				HumanoidRootPart.CFrame =
+					savedCFrame
+
+				HumanoidRootPart.AssemblyLinearVelocity =
+					Vector3.zero
+
+				HumanoidRootPart.AssemblyAngularVelocity =
+					Vector3.zero
+			end
+		end)
+
+		task.delay(0.05, function()
+
+			if HumanoidRootPart
+				and HumanoidRootPart.Parent
+				and savedCFrame
+			then
+
+				HumanoidRootPart.CFrame =
+					savedCFrame
+
+				HumanoidRootPart.AssemblyLinearVelocity =
+					Vector3.zero
+
+				HumanoidRootPart.AssemblyAngularVelocity =
+					Vector3.zero
+			end
+		end)
+
+		StatusLabel.Text =
+			"Returned to starting position"
+
+		StatusLabel.TextColor3 =
+			Color3.fromRGB(100, 255, 150)
+
+	else
+
+		StatusLabel.Text =
+			"Could not restore position"
+
+		StatusLabel.TextColor3 =
+			Color3.fromRGB(255, 80, 80)
 	end
 
 	--------------------------------------------------
-	-- CLEAR SAVED POSITION AFTER RESTORING
+	-- CLEAR SAVED POSITION LAST
 	--------------------------------------------------
 
 	savedCFrame = nil
-
-	StatusLabel.Text = "Returned to starting position"
-
-	StatusLabel.TextColor3 =
-		Color3.fromRGB(100, 255, 150)
 end
 
 --------------------------------------------------
@@ -545,11 +623,10 @@ local function startOrbit(targetPlayer)
 		)
 
 	--------------------------------------------------
-	-- SAVE POSITION BEFORE DOING ANYTHING
+	-- SAVE EXACT STARTING POSITION
+	--
+	-- THIS HAPPENS BEFORE THE FIRST ORBIT MOVEMENT.
 	--------------------------------------------------
-
-	-- This is captured ONCE when P starts orbit.
-	-- It will not change while orbiting.
 
 	savedCFrame =
 		HumanoidRootPart.CFrame
@@ -558,7 +635,8 @@ local function startOrbit(targetPlayer)
 	-- SAVE TARGET
 	--------------------------------------------------
 
-	currentTarget = targetPlayer
+	currentTarget =
+		targetPlayer
 
 	isOrbiting = true
 
@@ -587,7 +665,7 @@ local function startOrbit(targetPlayer)
 			end
 
 			--------------------------------------------------
-			-- GET TARGET AGAIN
+			-- TARGET CHECK
 			--------------------------------------------------
 
 			if
@@ -629,7 +707,7 @@ local function startOrbit(targetPlayer)
 			makeHeldToolBig()
 
 			--------------------------------------------------
-			-- POSITION UNDER TARGET
+			-- POSITION
 			--------------------------------------------------
 
 			local position =
@@ -641,7 +719,7 @@ local function startOrbit(targetPlayer)
 				)
 
 			--------------------------------------------------
-			-- FACING TARGET
+			-- ORIENTATION
 			--------------------------------------------------
 
 			if faceTarget then
@@ -653,10 +731,6 @@ local function startOrbit(targetPlayer)
 					)
 
 			else
-
-				--------------------------------------------------
-				-- UPRIGHT
-				--------------------------------------------------
 
 				HumanoidRootPart.CFrame =
 					CFrame.new(position)
@@ -677,19 +751,11 @@ end
 
 OrbitBtn.MouseButton1Click:Connect(function()
 
-	--------------------------------------------------
-	-- IF ORBITING = STOP + RETURN
-	--------------------------------------------------
-
 	if isOrbiting then
 
 		stopOrbit()
 		return
 	end
-
-	--------------------------------------------------
-	-- START
-	--------------------------------------------------
 
 	local targetPlayer =
 		findPlayer(NameBox.Text)
@@ -719,7 +785,7 @@ UserInputService.InputBegan:Connect(function(input)
 	end
 
 	--------------------------------------------------
-	-- P AGAIN = STOP + RETURN TO EXACT START
+	-- P AGAIN = STOP + RETURN
 	--------------------------------------------------
 
 	if isOrbiting then
@@ -890,11 +956,21 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
 		)
 
 	--------------------------------------------------
-	-- If you die/respawn during orbit,
-	-- stop the orbit normally.
+	-- Respawn ends the current orbit.
 	--------------------------------------------------
 
 	if isOrbiting then
-		stopOrbit()
+
+		isOrbiting = false
+		currentTarget = nil
+
+		if orbitConnection then
+
+			orbitConnection:Disconnect()
+
+			orbitConnection = nil
+		end
+
+		savedCFrame = nil
 	end
 end)
