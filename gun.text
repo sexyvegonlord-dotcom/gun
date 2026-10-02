@@ -1,5 +1,7 @@
 -- Orbit GUI Script
--- P Key = Orbit
+-- P Key = Toggle Orbit
+-- P again = Stop Orbit
+-- Orbit does NOT automatically end
 -- Facing Target = continuously face target
 -- Target HRP = 15x15x15
 -- Held Tool Hitbox = 15x15x15
@@ -37,8 +39,6 @@ local orbitDepth = -4
 local depthStep = 0.1
 
 local faceTarget = false
-
-local orbitDuration = 3
 
 --------------------------------------------------
 -- ORBIT STATE
@@ -467,14 +467,6 @@ end
 local function startOrbit(targetPlayer)
 
 	--------------------------------------------------
-	-- IF ALREADY ORBITING, STOP FIRST
-	--------------------------------------------------
-
-	if isOrbiting then
-		stopOrbit()
-	end
-
-	--------------------------------------------------
 	-- VALIDATE TARGET
 	--------------------------------------------------
 
@@ -557,13 +549,9 @@ local function startOrbit(targetPlayer)
 		Color3.fromRGB(100, 255, 150)
 
 	--------------------------------------------------
-	-- TIMER
-	--------------------------------------------------
-
-	local startTime = tick()
-
-	--------------------------------------------------
 	-- ORBIT LOOP
+	-- NO TIMER
+	-- RUNS UNTIL P IS PRESSED AGAIN
 	--------------------------------------------------
 
 	orbitConnection =
@@ -655,18 +643,6 @@ local function startOrbit(targetPlayer)
 						0
 					)
 			end
-
-			--------------------------------------------------
-			-- END AFTER 3 SECONDS
-			--------------------------------------------------
-
-			if
-				tick() - startTime
-				>= orbitDuration
-			then
-
-				stopOrbit()
-			end
 		end)
 end
 
@@ -675,6 +651,16 @@ end
 --------------------------------------------------
 
 OrbitBtn.MouseButton1Click:Connect(function()
+
+	--------------------------------------------------
+	-- IF ALREADY ORBITING, STOP
+	--------------------------------------------------
+
+	if isOrbiting then
+
+		stopOrbit()
+		return
+	end
 
 	local targetPlayer =
 		findPlayer(NameBox.Text)
@@ -699,33 +685,39 @@ end)
 
 UserInputService.InputBegan:Connect(function(input)
 
-	--------------------------------------------------
-	-- P DOES NOT CHECK gameProcessed
-	-- This means P works even if the GUI is focused.
-	--------------------------------------------------
-
-	if input.KeyCode == Enum.KeyCode.P then
-
-		local targetPlayer =
-			findPlayer(NameBox.Text)
-
-		if not targetPlayer then
-
-			StatusLabel.Text =
-				"Player not found"
-
-			StatusLabel.TextColor3 =
-				Color3.fromRGB(255, 80, 80)
-
-			return
-		end
-
-		--------------------------------------------------
-		-- EXACT SAME ORBIT FUNCTION
-		--------------------------------------------------
-
-		startOrbit(targetPlayer)
+	if input.KeyCode ~= Enum.KeyCode.P then
+		return
 	end
+
+	--------------------------------------------------
+	-- P AGAIN = STOP
+	--------------------------------------------------
+
+	if isOrbiting then
+
+		stopOrbit()
+		return
+	end
+
+	--------------------------------------------------
+	-- P = START
+	--------------------------------------------------
+
+	local targetPlayer =
+		findPlayer(NameBox.Text)
+
+	if not targetPlayer then
+
+		StatusLabel.Text =
+			"Player not found"
+
+		StatusLabel.TextColor3 =
+			Color3.fromRGB(255, 80, 80)
+
+		return
+	end
+
+	startOrbit(targetPlayer)
 end)
 
 --------------------------------------------------
