@@ -1,6 +1,6 @@
 -- Orbit GUI Script
 -- P Key = Toggle Orbit
--- P again = Stop Orbit
+-- P again = Stop Orbit + Return to EXACT starting position
 -- Orbit does NOT automatically end
 -- Facing Target = continuously face target
 -- Target HRP = 15x15x15
@@ -28,8 +28,12 @@ end
 -- CHARACTER
 --------------------------------------------------
 
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Character =
+	LocalPlayer.Character
+	or LocalPlayer.CharacterAdded:Wait()
+
+local HumanoidRootPart =
+	Character:WaitForChild("HumanoidRootPart")
 
 --------------------------------------------------
 -- SETTINGS
@@ -47,7 +51,9 @@ local faceTarget = false
 local isOrbiting = false
 local orbitConnection = nil
 
+-- EXACT CFrame from BEFORE orbit starts
 local savedCFrame = nil
+
 local currentTarget = nil
 
 --------------------------------------------------
@@ -345,14 +351,17 @@ local function makeTargetHRPBig(targetPlayer)
 		return false
 	end
 
-	local targetCharacter = targetPlayer.Character
+	local targetCharacter =
+		targetPlayer.Character
 
 	if not targetCharacter then
 		return false
 	end
 
 	local targetHRP =
-		targetCharacter:FindFirstChild("HumanoidRootPart")
+		targetCharacter:FindFirstChild(
+			"HumanoidRootPart"
+		)
 
 	if not targetHRP then
 		return false
@@ -372,7 +381,8 @@ end
 
 local function makeHeldToolBig()
 
-	local char = LocalPlayer.Character
+	local char =
+		LocalPlayer.Character
 
 	if not char then
 		return false
@@ -432,6 +442,10 @@ local function stopOrbit()
 	isOrbiting = false
 	currentTarget = nil
 
+	--------------------------------------------------
+	-- STOP LOOP FIRST
+	--------------------------------------------------
+
 	if orbitConnection then
 
 		orbitConnection:Disconnect()
@@ -440,24 +454,30 @@ local function stopOrbit()
 	end
 
 	--------------------------------------------------
-	-- RETURN TO ORIGINAL POSITION + ORIENTATION
+	-- RETURN TO EXACT STARTING CFRAME
 	--------------------------------------------------
 
 	if
-		HumanoidRootPart
+		savedCFrame
+		and HumanoidRootPart
 		and HumanoidRootPart.Parent
-		and savedCFrame
 	then
 
-		HumanoidRootPart.CFrame =
-			savedCFrame
+		-- Restore the EXACT CFrame from
+		-- immediately before the first P
+		HumanoidRootPart.CFrame = savedCFrame
 	end
+
+	--------------------------------------------------
+	-- CLEAR SAVED POSITION AFTER RESTORING
+	--------------------------------------------------
 
 	savedCFrame = nil
 
-	StatusLabel.Text = "Stopped"
+	StatusLabel.Text = "Returned to starting position"
+
 	StatusLabel.TextColor3 =
-		Color3.fromRGB(255, 150, 150)
+		Color3.fromRGB(100, 255, 150)
 end
 
 --------------------------------------------------
@@ -525,11 +545,18 @@ local function startOrbit(targetPlayer)
 		)
 
 	--------------------------------------------------
-	-- SAVE ORIGINAL CFRAME
+	-- SAVE POSITION BEFORE DOING ANYTHING
 	--------------------------------------------------
+
+	-- This is captured ONCE when P starts orbit.
+	-- It will not change while orbiting.
 
 	savedCFrame =
 		HumanoidRootPart.CFrame
+
+	--------------------------------------------------
+	-- SAVE TARGET
+	--------------------------------------------------
 
 	currentTarget = targetPlayer
 
@@ -550,8 +577,6 @@ local function startOrbit(targetPlayer)
 
 	--------------------------------------------------
 	-- ORBIT LOOP
-	-- NO TIMER
-	-- RUNS UNTIL P IS PRESSED AGAIN
 	--------------------------------------------------
 
 	orbitConnection =
@@ -653,7 +678,7 @@ end
 OrbitBtn.MouseButton1Click:Connect(function()
 
 	--------------------------------------------------
-	-- IF ALREADY ORBITING, STOP
+	-- IF ORBITING = STOP + RETURN
 	--------------------------------------------------
 
 	if isOrbiting then
@@ -661,6 +686,10 @@ OrbitBtn.MouseButton1Click:Connect(function()
 		stopOrbit()
 		return
 	end
+
+	--------------------------------------------------
+	-- START
+	--------------------------------------------------
 
 	local targetPlayer =
 		findPlayer(NameBox.Text)
@@ -690,7 +719,7 @@ UserInputService.InputBegan:Connect(function(input)
 	end
 
 	--------------------------------------------------
-	-- P AGAIN = STOP
+	-- P AGAIN = STOP + RETURN TO EXACT START
 	--------------------------------------------------
 
 	if isOrbiting then
@@ -700,7 +729,7 @@ UserInputService.InputBegan:Connect(function(input)
 	end
 
 	--------------------------------------------------
-	-- P = START
+	-- FIRST P = START
 	--------------------------------------------------
 
 	local targetPlayer =
@@ -859,6 +888,11 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
 		newCharacter:WaitForChild(
 			"HumanoidRootPart"
 		)
+
+	--------------------------------------------------
+	-- If you die/respawn during orbit,
+	-- stop the orbit normally.
+	--------------------------------------------------
 
 	if isOrbiting then
 		stopOrbit()
