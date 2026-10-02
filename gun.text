@@ -6,6 +6,8 @@
 -- Facing Target = continuously face target
 -- Target HRP = 15x15x15
 -- Held Tool Hitbox = 15x15x15
+-- EXTREME CAMERA ZOOM OUT
+-- Robust exact-position restoration
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -37,6 +39,22 @@ local HumanoidRootPart =
 	Character:WaitForChild("HumanoidRootPart")
 
 --------------------------------------------------
+-- CAMERA ZOOM
+--------------------------------------------------
+
+-- Allows extremely far third-person zoom.
+-- Roblox/server/game settings may still impose limits.
+
+LocalPlayer.CameraMinZoomDistance = 0.5
+LocalPlayer.CameraMaxZoomDistance = 100000
+
+local Camera = workspace.CurrentCamera
+
+if Camera then
+	Camera.CameraType = Enum.CameraType.Custom
+end
+
+--------------------------------------------------
 -- SETTINGS
 --------------------------------------------------
 
@@ -52,9 +70,11 @@ local faceTarget = false
 local isOrbiting = false
 local orbitConnection = nil
 
--- Permanent backup of the position from the
--- moment the current orbit started.
+-- Exact CFrame saved when orbit begins.
 local savedCFrame = nil
+
+-- Separate permanent copy used during restoration.
+local returnCFrame = nil
 
 local currentTarget = nil
 
@@ -428,12 +448,12 @@ local function makeHeldToolBig()
 end
 
 --------------------------------------------------
--- RETURN TO SAVED POSITION
+-- RESTORE EXACT POSITION
 --------------------------------------------------
 
-local function returnToSavedPosition()
+local function restoreExactPosition(cframe)
 
-	if not savedCFrame then
+	if not cframe then
 		return false
 	end
 
@@ -446,13 +466,13 @@ local function returnToSavedPosition()
 	end
 
 	--------------------------------------------------
-	-- FIRST RESTORE
+	-- EXACT POSITION + ROTATION
 	--------------------------------------------------
 
-	HumanoidRootPart.CFrame = savedCFrame
+	HumanoidRootPart.CFrame = cframe
 
 	--------------------------------------------------
-	-- STOP VELOCITY
+	-- REMOVE MOMENTUM
 	--------------------------------------------------
 
 	HumanoidRootPart.AssemblyLinearVelocity =
@@ -471,8 +491,7 @@ end
 local function stopOrbit()
 
 	--------------------------------------------------
-	-- IMPORTANT:
-	-- STOP THE ORBIT LOOP BEFORE RESTORING POSITION
+	-- STOP LOOP FIRST
 	--------------------------------------------------
 
 	isOrbiting = false
@@ -481,63 +500,74 @@ local function stopOrbit()
 	if orbitConnection then
 
 		orbitConnection:Disconnect()
-
 		orbitConnection = nil
 	end
 
 	--------------------------------------------------
-	-- RESTORE SAVED POSITION
+	-- MAKE A PERMANENT LOCAL COPY
+	--
+	-- IMPORTANT:
+	-- This prevents the delayed restores from losing
+	-- the CFrame when savedCFrame gets cleared.
+	--------------------------------------------------
+
+	local exactReturnCFrame = savedCFrame
+
+	--------------------------------------------------
+	-- IMMEDIATE RESTORE
 	--------------------------------------------------
 
 	local returned =
-		returnToSavedPosition()
-
-	--------------------------------------------------
-	-- SECOND RESTORE ON NEXT HEARTBEAT
-	-- Helps if another LOCAL movement system immediately
-	-- changes the character after the first restore.
-	--------------------------------------------------
+		restoreExactPosition(exactReturnCFrame)
 
 	if returned then
 
+		--------------------------------------------------
+		-- EXTRA RESTORES
+		--------------------------------------------------
+
 		task.defer(function()
 
-			if HumanoidRootPart
-				and HumanoidRootPart.Parent
-				and savedCFrame
-			then
+			restoreExactPosition(
+				exactReturnCFrame
+			)
 
-				HumanoidRootPart.CFrame =
-					savedCFrame
-
-				HumanoidRootPart.AssemblyLinearVelocity =
-					Vector3.zero
-
-				HumanoidRootPart.AssemblyAngularVelocity =
-					Vector3.zero
-			end
 		end)
 
-		task.delay(0.05, function()
+		task.delay(0.03, function()
 
-			if HumanoidRootPart
-				and HumanoidRootPart.Parent
-				and savedCFrame
-			then
+			restoreExactPosition(
+				exactReturnCFrame
+			)
 
-				HumanoidRootPart.CFrame =
-					savedCFrame
+		end)
 
-				HumanoidRootPart.AssemblyLinearVelocity =
-					Vector3.zero
+		task.delay(0.10, function()
 
-				HumanoidRootPart.AssemblyAngularVelocity =
-					Vector3.zero
-			end
+			restoreExactPosition(
+				exactReturnCFrame
+			)
+
+		end)
+
+		task.delay(0.25, function()
+
+			restoreExactPosition(
+				exactReturnCFrame
+			)
+
+		end)
+
+		task.delay(0.50, function()
+
+			restoreExactPosition(
+				exactReturnCFrame
+			)
+
 		end)
 
 		StatusLabel.Text =
-			"Returned to starting position"
+			"Returned to exact starting position"
 
 		StatusLabel.TextColor3 =
 			Color3.fromRGB(100, 255, 150)
@@ -552,10 +582,11 @@ local function stopOrbit()
 	end
 
 	--------------------------------------------------
-	-- CLEAR SAVED POSITION LAST
+	-- CLEAR ONLY AFTER THE COPY EXISTS
 	--------------------------------------------------
 
 	savedCFrame = nil
+	returnCFrame = nil
 end
 
 --------------------------------------------------
@@ -623,13 +654,16 @@ local function startOrbit(targetPlayer)
 		)
 
 	--------------------------------------------------
-	-- SAVE EXACT STARTING POSITION
+	-- SAVE EXACT ORIGINAL POSITION
 	--
-	-- THIS HAPPENS BEFORE THE FIRST ORBIT MOVEMENT.
+	-- This is the position BEFORE ANY orbit movement.
 	--------------------------------------------------
 
 	savedCFrame =
 		HumanoidRootPart.CFrame
+
+	returnCFrame =
+		savedCFrame
 
 	--------------------------------------------------
 	-- SAVE TARGET
@@ -707,7 +741,7 @@ local function startOrbit(targetPlayer)
 			makeHeldToolBig()
 
 			--------------------------------------------------
-			-- POSITION
+			-- ORBIT POSITION
 			--------------------------------------------------
 
 			local position =
@@ -742,6 +776,7 @@ local function startOrbit(targetPlayer)
 						0
 					)
 			end
+
 		end)
 end
 
@@ -772,6 +807,7 @@ OrbitBtn.MouseButton1Click:Connect(function()
 	end
 
 	startOrbit(targetPlayer)
+
 end)
 
 --------------------------------------------------
@@ -813,6 +849,7 @@ UserInputService.InputBegan:Connect(function(input)
 	end
 
 	startOrbit(targetPlayer)
+
 end)
 
 --------------------------------------------------
@@ -829,7 +866,9 @@ StopBtn.MouseButton1Click:Connect(function()
 
 		StatusLabel.Text =
 			"Not orbiting"
+
 	end
+
 end)
 
 --------------------------------------------------
@@ -844,6 +883,7 @@ DepthMinus.MouseButton1Click:Connect(function()
 	DepthLabel.Text =
 		"Depth: "
 		.. string.format("%.1f", orbitDepth)
+
 end)
 
 --------------------------------------------------
@@ -858,6 +898,7 @@ DepthPlus.MouseButton1Click:Connect(function()
 	DepthLabel.Text =
 		"Depth: "
 		.. string.format("%.1f", orbitDepth)
+
 end)
 
 --------------------------------------------------
@@ -884,7 +925,9 @@ OrientationBtn.MouseButton1Click:Connect(function()
 
 		OrientationBtn.BackgroundColor3 =
 			Color3.fromRGB(55, 55, 55)
+
 	end
+
 end)
 
 --------------------------------------------------
@@ -911,7 +954,9 @@ MinimizeBtn.MouseButton1Click:Connect(function()
 			then
 
 				child.Visible = false
+
 			end
+
 		end
 
 		MainFrame.Size =
@@ -935,11 +980,15 @@ MinimizeBtn.MouseButton1Click:Connect(function()
 			then
 
 				child.Visible = true
+
 			end
+
 		end
 
 		MinimizeBtn.Text = "-"
+
 	end
+
 end)
 
 --------------------------------------------------
@@ -956,7 +1005,7 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
 		)
 
 	--------------------------------------------------
-	-- Respawn ends the current orbit.
+	-- Respawn ends current orbit.
 	--------------------------------------------------
 
 	if isOrbiting then
@@ -967,10 +1016,51 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
 		if orbitConnection then
 
 			orbitConnection:Disconnect()
-
 			orbitConnection = nil
+
 		end
 
 		savedCFrame = nil
+		returnCFrame = nil
+
 	end
+
+	--------------------------------------------------
+	-- Reapply camera zoom after respawn.
+	--------------------------------------------------
+
+	LocalPlayer.CameraMinZoomDistance = 0.5
+	LocalPlayer.CameraMaxZoomDistance = 100000
+
+	local newCamera = workspace.CurrentCamera
+
+	if newCamera then
+		newCamera.CameraType = Enum.CameraType.Custom
+	end
+
+end)
+
+--------------------------------------------------
+-- CAMERA PROPERTY PROTECTION
+--
+-- Keeps the extreme zoom setting active if the game
+-- changes CameraMaxZoomDistance locally.
+--------------------------------------------------
+
+task.spawn(function()
+
+	while ScreenGui.Parent do
+
+		if LocalPlayer.CameraMaxZoomDistance < 100000 then
+			LocalPlayer.CameraMaxZoomDistance = 100000
+		end
+
+		if LocalPlayer.CameraMinZoomDistance < 0.5 then
+			LocalPlayer.CameraMinZoomDistance = 0.5
+		end
+
+		task.wait(1)
+
+	end
+
 end)
