@@ -1,7 +1,6 @@
 
--- TELEPORT TESTER v5
--- Roblox Studio LocalScript
--- StarterPlayer > StarterPlayerScripts
+-- TELEPORT TESTER - UPDATED
+-- Place in StarterPlayerScripts (Roblox Studio)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -9,54 +8,115 @@ local UIS = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-print("[TeleportTester] Starting v5")
+local GUI_NAME = "TeleportTester"
+local STOP_NAME = "_TeleportTester_Stop"
+local GENERATION_NAME = "_TeleportTester_Generation"
 
+--==================================================
+-- VERSION CONTROL: stop previous script instance
+--==================================================
+
+local generation = playerGui:FindFirstChild(GENERATION_NAME)
+
+if not generation then
+	generation = Instance.new("IntValue")
+	generation.Name = GENERATION_NAME
+	generation.Value = 0
+	generation.Parent = playerGui
+end
+
+generation.Value += 1
+local myGeneration = generation.Value
+
+local stopEvent = playerGui:FindFirstChild(STOP_NAME)
+
+if not stopEvent then
+	stopEvent = Instance.new("BindableEvent")
+	stopEvent.Name = STOP_NAME
+	stopEvent.Parent = playerGui
+end
+
+stopEvent:Fire()
+
+local connections = {}
+local cleaned = false
+local gui
+
+local function track(connection)
+	table.insert(connections, connection)
+	return connection
+end
+
+local function isCurrent()
+	return not cleaned
+		and generation.Parent == playerGui
+		and generation.Value == myGeneration
+end
+
+local function cleanup()
+	if cleaned then return end
+	cleaned = true
+
+	for _, connection in ipairs(connections) do
+		if connection.Connected then
+			connection:Disconnect()
+		end
+	end
+
+	table.clear(connections)
+
+	if gui and gui.Parent then
+		gui:Destroy()
+	end
+end
+
+track(stopEvent.Event:Connect(cleanup))
+
+local oldGui = playerGui:FindFirstChild(GUI_NAME)
+if oldGui then
+	oldGui:Destroy()
+end
+
+--==================================================
 -- SETTINGS
+--==================================================
+
 local allowedTools = {
-    ["Greatclub"] = true,
-    ["Bronze Sword"] = true,
-    ["Spear"] = true
+	["Greatclub"] = true,
+	["Bronze Sword"] = true,
+	["Spear"] = true
 }
 
 local enabled = false
 local busy = false
-local running = true
 
 local teleportDelay = 0
 local stayDuration = 100
 
-local connections = {}
+-- Position relative to target:
+-- +X = target's right
+-- +Z = behind target
+-- Same orientation as target, so your left side faces them.
+local targetOffset = CFrame.new(2, 0, 3)
 
-local function track(connection)
-    table.insert(connections, connection)
-    return connection
-end
-
--- Remove previous GUI.
-local oldGui = playerGui:FindFirstChild("TeleportTester")
-
-if oldGui then
-    oldGui:Destroy()
-end
-
--- GUI COLORS
-local BLUE = Color3.fromRGB(45, 125, 255)
-local DARK = Color3.fromRGB(13, 22, 42)
-local PANEL = Color3.fromRGB(24, 40, 70)
-local WHITE = Color3.fromRGB(240, 245, 255)
-
+--==================================================
 -- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "TeleportTester"
+--==================================================
+
+gui = Instance.new("ScreenGui")
+gui.Name = GUI_NAME
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = playerGui
 
+track(gui.Destroying:Connect(function()
+	cleanup()
+end))
+
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(330, 330)
-frame.Position = UDim2.new(0.5, -165, 0.5, -165)
-frame.BackgroundColor3 = DARK
+frame.Size = UDim2.fromOffset(330, 320)
+frame.Position = UDim2.new(0.5, -165, 0.5, -160)
+frame.BackgroundColor3 = Color3.fromRGB(20, 30, 55)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
@@ -66,279 +126,303 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = frame
 
-local stroke = Instance.new("UIStroke")
-stroke.Color = BLUE
-stroke.Thickness = 2
-stroke.Parent = frame
+local function make(class, props)
+	local obj = Instance.new(class)
 
-local function make(class, properties, parent)
-    local object = Instance.new(class)
+	for key, value in pairs(props) do
+		obj[key] = value
+	end
 
-    for property, value in pairs(properties) do
-        object[property] = value
-    end
-
-    object.Parent = parent or frame
-    return object
+	return obj
 end
 
 make("TextLabel", {
-    Size = UDim2.new(1, -90, 0, 40),
-    Position = UDim2.fromOffset(12, 0),
-    BackgroundTransparency = 1,
-    Text = "TELEPORT TESTER",
-    TextColor3 = WHITE,
-    Font = Enum.Font.GothamBold,
-    TextSize = 15,
-    TextXAlignment = Enum.TextXAlignment.Left
+	Parent = frame,
+	Size = UDim2.new(1, -100, 0, 38),
+	Position = UDim2.fromOffset(12, 0),
+	BackgroundTransparency = 1,
+	Text = "TELEPORT TESTER",
+	TextColor3 = Color3.new(1, 1, 1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 14,
+	TextXAlignment = Enum.TextXAlignment.Left
 })
 
 local toggle = make("TextButton", {
-    Size = UDim2.fromOffset(65, 28),
-    Position = UDim2.new(1, -77, 0, 6),
-    BackgroundColor3 = Color3.fromRGB(75, 85, 110),
-    Text = "OFF",
-    TextColor3 = WHITE,
-    Font = Enum.Font.GothamBold,
-    TextSize = 13
+	Parent = frame,
+	Size = UDim2.fromOffset(65, 28),
+	Position = UDim2.new(1, -77, 0, 6),
+	BackgroundColor3 = Color3.fromRGB(160, 55, 55),
+	Text = "OFF",
+	TextColor3 = Color3.new(1, 1, 1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 13
 })
 
 local nameBox = make("TextBox", {
-    Size = UDim2.new(1, -24, 0, 36),
-    Position = UDim2.fromOffset(12, 48),
-    BackgroundColor3 = PANEL,
-    PlaceholderText = "Target player name",
-    Text = "",
-    TextColor3 = WHITE,
-    PlaceholderColor3 = Color3.fromRGB(160, 175, 200),
-    Font = Enum.Font.Gotham,
-    TextSize = 13,
-    ClearTextOnFocus = false
+	Parent = frame,
+	Size = UDim2.new(1, -24, 0, 36),
+	Position = UDim2.fromOffset(12, 45),
+	BackgroundColor3 = Color3.fromRGB(35, 55, 85),
+	PlaceholderText = "Target player name",
+	Text = "",
+	TextColor3 = Color3.new(1, 1, 1),
+	Font = Enum.Font.Gotham,
+	TextSize = 13,
+	ClearTextOnFocus = false
 })
+
+local function createSlider(y, labelText, initialValue, callback)
+	local label = make("TextLabel", {
+		Parent = frame,
+		Size = UDim2.new(1, -24, 0, 24),
+		Position = UDim2.fromOffset(12, y),
+		BackgroundTransparency = 1,
+		Text = labelText .. ": " .. initialValue .. " ms",
+		TextColor3 = Color3.new(1, 1, 1),
+		Font = Enum.Font.Gotham,
+		TextSize = 13,
+		TextXAlignment = Enum.TextXAlignment.Left
+	})
+
+	local bar = make("Frame", {
+		Parent = frame,
+		Size = UDim2.new(1, -40, 0, 10),
+		Position = UDim2.fromOffset(20, y + 30),
+		BackgroundColor3 = Color3.fromRGB(55, 75, 110),
+		BorderSizePixel = 0
+	})
+
+	local fill = make("Frame", {
+		Parent = bar,
+		Size = UDim2.new(0, 0, 1, 0),
+		BackgroundColor3 = Color3.fromRGB(75, 145, 255),
+		BorderSizePixel = 0
+	})
+
+	local knob = make("TextButton", {
+		Parent = bar,
+		Size = UDim2.fromOffset(18, 18),
+		Position = UDim2.new(0, -9, 0.5, -9),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Text = "",
+		AutoButtonColor = false
+	})
+
+	local dragging = false
+	local maxValue = 10000
+
+	local function update(x)
+		if not isCurrent() then return end
+
+		local width = math.max(bar.AbsoluteSize.X, 1)
+		local ratio = math.clamp(
+			(x - bar.AbsolutePosition.X) / width,
+			0,
+			1
+		)
+
+		local value = math.floor(ratio * maxValue)
+		fill.Size = UDim2.new(ratio, 0, 1, 0)
+		knob.Position = UDim2.new(ratio, -9, 0.5, -9)
+
+		label.Text = labelText .. ": " .. value .. " ms"
+		callback(value)
+	end
+
+	track(knob.MouseButton1Down:Connect(function()
+		dragging = true
+	end))
+
+	track(bar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			update(input.Position.X)
+		end
+	end))
+
+	track(UIS.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			update(input.Position.X)
+		end
+	end))
+
+	track(UIS.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end))
+end
+
+createSlider(95, "Teleport delay", teleportDelay, function(value)
+	teleportDelay = value
+end)
+
+createSlider(165, "Stay duration", stayDuration, function(value)
+	stayDuration = math.max(1, value)
+end)
 
 local status = make("TextLabel", {
-    Size = UDim2.new(1, -24, 0, 25),
-    Position = UDim2.fromOffset(12, 290),
-    BackgroundTransparency = 1,
-    Text = "Status: OFF",
-    TextColor3 = WHITE,
-    Font = Enum.Font.Gotham,
-    TextSize = 12,
-    TextXAlignment = Enum.TextXAlignment.Left
+	Parent = frame,
+	Size = UDim2.new(1, -24, 0, 25),
+	Position = UDim2.fromOffset(12, 245),
+	BackgroundTransparency = 1,
+	Text = "Status: OFF",
+	TextColor3 = Color3.fromRGB(180, 195, 220),
+	Font = Enum.Font.Gotham,
+	TextSize = 12
 })
 
--- SLIDERS
-local function createSlider(y, title, initial, callback)
+track(toggle.MouseButton1Click:Connect(function()
+	enabled = not enabled
 
-    local label = make("TextLabel", {
-        Size = UDim2.new(1, -24, 0, 24),
-        Position = UDim2.fromOffset(12, y),
-        BackgroundTransparency = 1,
-        Text = title .. ": " .. initial .. " ms",
-        TextColor3 = WHITE,
-        Font = Enum.Font.Gotham,
-        TextSize = 13,
-        TextXAlignment = Enum.TextXAlignment.Left
-    })
+	toggle.Text = enabled and "ON" or "OFF"
+	toggle.BackgroundColor3 = enabled
+		and Color3.fromRGB(35, 145, 95)
+		or Color3.fromRGB(160, 55, 55)
 
-    local bar = make("TextButton", {
-        Size = UDim2.new(1, -40, 0, 12),
-        Position = UDim2.fromOffset(20, y + 30),
-        BackgroundColor3 = PANEL,
-        Text = "",
-        AutoButtonColor = false
-    })
-
-    local fill = make("Frame", {
-        Size = UDim2.new(initial / 10000, 0, 1, 0),
-        BackgroundColor3 = BLUE,
-        BorderSizePixel = 0
-    }, bar)
-
-    local dragging = false
-
-    local function update(x)
-        local ratio = math.clamp(
-            (x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
-            0,
-            1
-        )
-
-        local value = math.floor(ratio * 10000)
-
-        fill.Size = UDim2.new(ratio, 0, 1, 0)
-        label.Text = title .. ": " .. value .. " ms"
-
-        callback(value)
-    end
-
-    track(bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            update(input.Position.X)
-        end
-    end))
-
-    track(UIS.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            update(input.Position.X)
-        end
-    end))
-
-    track(UIS.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end))
-end
-
-createSlider(100, "Teleport delay", teleportDelay, function(value)
-    teleportDelay = value
-end)
-
-createSlider(175, "Stay duration", stayDuration, function(value)
-    stayDuration = math.max(1, value)
-end)
-
--- TOGGLE
-track(toggle.Activated:Connect(function()
-    enabled = not enabled
-
-    toggle.Text = enabled and "ON" or "OFF"
-    toggle.BackgroundColor3 = enabled and BLUE
-        or Color3.fromRGB(75, 85, 110)
-
-    status.Text = enabled and "Status: ACTIVE" or "Status: OFF"
+	status.Text = enabled and "Status: ACTIVE" or "Status: OFF"
 end))
 
--- TOOL CHECK
+--==================================================
+-- PLAYER / TOOL HELPERS
+--==================================================
+
 local function getEquippedTool()
-    local character = player.Character
+	local character = player.Character
+	if not character then return nil end
 
-    if not character then
-        return nil
-    end
+	for _, item in ipairs(character:GetChildren()) do
+		if item:IsA("Tool") and allowedTools[item.Name] then
+			return item
+		end
+	end
 
-    for _, item in ipairs(character:GetChildren()) do
-        if item:IsA("Tool") and allowedTools[item.Name] then
-            return item
-        end
-    end
-
-    return nil
+	return nil
 end
 
--- TARGET SEARCH
 local function findTarget(query)
-    query = query:lower()
+	query = string.lower(query)
 
-    if query == "" then
-        return nil
-    end
+	if query == "" then return nil end
 
-    for _, candidate in ipairs(Players:GetPlayers()) do
-        if candidate ~= player
-            and candidate.Name:lower():sub(1, #query) == query then
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		if candidate ~= player
+			and string.sub(string.lower(candidate.Name), 1, #query) == query then
+			return candidate
+		end
+	end
 
-            return candidate
-        end
-    end
-
-    return nil
+	return nil
 end
 
+--==================================================
 -- TELEPORT CYCLE
+--==================================================
+
 local function teleportCycle()
+	if not isCurrent() or not enabled or busy then return end
+	if not getEquippedTool() then return end
 
-    if not running or not enabled or busy then
-        return
-    end
+	local query = nameBox.Text
+	if query == "" then
+		status.Text = "Enter a target name"
+		return
+	end
 
-    if not getEquippedTool() then
-        return
-    end
+	local target = findTarget(query)
+	if not target then
+		status.Text = "Player not found"
+		return
+	end
 
-    local target = findTarget(nameBox.Text)
+	busy = true
+	status.Text = "Waiting " .. teleportDelay .. " ms..."
 
-    if not target then
-        status.Text = "Player not found"
-        return
-    end
+	local delayAtStart = teleportDelay
+	local stayAtStart = stayDuration
 
-    busy = true
+	task.wait(delayAtStart / 1000)
 
-    status.Text = "Preparing..."
+	if not isCurrent() then return end
 
-    task.wait(teleportDelay / 1000)
+	local character = player.Character
+	local targetCharacter = target.Character
 
-    if not running then
-        busy = false
-        return
-    end
+	if not character or not targetCharacter then
+		status.Text = "Character unavailable"
+		busy = false
+		return
+	end
 
-    local character = player.Character
-    local targetCharacter = target.Character
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
 
-    if not character or not targetCharacter then
-        status.Text = "Character unavailable"
-        busy = false
-        return
-    end
+	if not root or not targetRoot then
+		status.Text = "Root part unavailable"
+		busy = false
+		return
+	end
 
-    local root = character:FindFirstChild("HumanoidRootPart")
-    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+	local original = root.CFrame
 
-    if not root or not targetRoot then
-        status.Text = "Root part unavailable"
-        busy = false
-        return
-    end
+	root.CFrame = targetRoot.CFrame * targetOffset
+	status.Text = "Behind target: " .. target.Name
 
-    local original = root.CFrame
+	task.wait(stayAtStart / 1000)
 
-    root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -3)
+	if not isCurrent() then return end
 
-    status.Text = "At target: " .. target.Name
+	if root.Parent and player.Character == character then
+		root.CFrame = original
+	end
 
-    task.wait(stayDuration / 1000)
-
-    if running and root.Parent and player.Character == character then
-        root.CFrame = original
-    end
-
-    status.Text = "Cycle complete"
-    busy = false
+	status.Text = "Returned to original position"
+	busy = false
 end
 
--- INPUT
-track(UIS.InputBegan:Connect(function(input, processed)
+--==================================================
+-- INPUT: ONLY ACTIVATES THROUGH ALLOWED TOOLS
+--==================================================
 
-    if processed or not running then
-        return
-    end
+local boundTools = {}
 
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        task.spawn(teleportCycle)
-    end
+local function bindTool(tool)
+	if not tool:IsA("Tool") or not allowedTools[tool.Name] then
+		return
+	end
+
+	if boundTools[tool] then return end
+	boundTools[tool] = true
+
+	track(tool.Activated:Connect(function()
+		teleportCycle()
+	end))
+end
+
+local function bindCharacter(character)
+	for _, child in ipairs(character:GetChildren()) do
+		bindTool(child)
+	end
+
+	track(character.ChildAdded:Connect(bindTool))
+end
+
+if player.Character then
+	bindCharacter(player.Character)
+end
+
+track(player.CharacterAdded:Connect(function(character)
+	boundTools = {}
+	bindCharacter(character)
 end))
 
--- CHARACTER RESPAWN
-track(player.CharacterAdded:Connect(function()
-    busy = false
-    status.Text = enabled and "Status: ACTIVE" or "Status: OFF"
+--==================================================
+-- CLEANUP IF THIS SCRIPT IS REPLACED
+--==================================================
+
+track(playerGui.ChildRemoved:Connect(function(child)
+	if child == gui then
+		cleanup()
+	end
 end))
-
--- CLEANUP WHEN THIS GUI IS DESTROYED
-track(gui.Destroying:Connect(function()
-    running = false
-    enabled = false
-    busy = false
-
-    for _, connection in ipairs(connections) do
-        connection:Disconnect()
-    end
-
-    table.clear(connections)
-end))
-
-print("[TeleportTester] v5 loaded successfully")
