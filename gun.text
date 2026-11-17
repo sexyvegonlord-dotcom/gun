@@ -1,7 +1,7 @@
 
--- TELEPORT TESTER - R KEY + TOOL CLICK
+-- TELEPORT TESTER - CLICK + R CONFIGURATION
 -- Roblox Studio LocalScript
--- Place in StarterPlayerScripts
+-- Place inside StarterPlayerScripts
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -9,32 +9,29 @@ local UIS = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local GUI_NAME = "TeleportTester"
-local STOP_NAME = "_TeleportTester_Stop"
-local GENERATION_NAME = "_TeleportTester_Generation"
-
 --==================================================
 -- VERSION CONTROL
 --==================================================
 
-local generation = playerGui:FindFirstChild(GENERATION_NAME)
+local GUI_NAME = "TeleportTester"
+local STOP_NAME = "_TeleportTester_Stop"
+local GENERATION_NAME = "_TeleportTester_Generation"
 
+local generation = playerGui:FindFirstChild(GENERATION_NAME)
 if not generation then
-	generation = Instance.new("IntValue")
-	generation.Name = GENERATION_NAME
-	generation.Value = 0
-	generation.Parent = playerGui
+    generation = Instance.new("IntValue")
+    generation.Name = GENERATION_NAME
+    generation.Parent = playerGui
 end
 
 generation.Value += 1
 local myGeneration = generation.Value
 
 local stopEvent = playerGui:FindFirstChild(STOP_NAME)
-
 if not stopEvent then
-	stopEvent = Instance.new("BindableEvent")
-	stopEvent.Name = STOP_NAME
-	stopEvent.Parent = playerGui
+    stopEvent = Instance.new("BindableEvent")
+    stopEvent.Name = STOP_NAME
+    stopEvent.Parent = playerGui
 end
 
 stopEvent:Fire()
@@ -44,38 +41,38 @@ local cleaned = false
 local gui
 
 local function track(connection)
-	table.insert(connections, connection)
-	return connection
+    table.insert(connections, connection)
+    return connection
 end
 
 local function isCurrent()
-	return not cleaned
-		and generation.Parent == playerGui
-		and generation.Value == myGeneration
+    return not cleaned
+        and generation.Parent == playerGui
+        and generation.Value == myGeneration
 end
 
 local function cleanup()
-	if cleaned then return end
-	cleaned = true
+    if cleaned then return end
+    cleaned = true
 
-	for _, connection in ipairs(connections) do
-		if connection.Connected then
-			connection:Disconnect()
-		end
-	end
+    for _, connection in ipairs(connections) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
 
-	table.clear(connections)
+    table.clear(connections)
 
-	if gui and gui.Parent then
-		gui:Destroy()
-	end
+    if gui and gui.Parent then
+        gui:Destroy()
+    end
 end
 
 track(stopEvent.Event:Connect(cleanup))
 
 local oldGui = playerGui:FindFirstChild(GUI_NAME)
 if oldGui then
-	oldGui:Destroy()
+    oldGui:Destroy()
 end
 
 --==================================================
@@ -83,19 +80,23 @@ end
 --==================================================
 
 local allowedTools = {
-	["Greatclub"] = true,
-	["Bronze Sword"] = true,
-	["Spear"] = true
+    ["Greatclub"] = true,
+    ["Bronze Sword"] = true,
+    ["Spear"] = true
 }
 
 local enabled = false
 local busy = false
 
-local teleportDelay = 0
-local stayDuration = 100
+-- Left-click settings
+local clickDelay = 0
+local clickStay = 100
 
--- Position behind target, slightly to their right.
--- The character then faces toward the target's torso.
+-- R-key settings
+local rDelay = 0
+local rStay = 100
+
+-- Position behind target, slightly to their right
 local SIDE_OFFSET = 1.5
 local BACK_OFFSET = 3
 
@@ -112,8 +113,8 @@ gui.Parent = playerGui
 track(gui.Destroying:Connect(cleanup))
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(330, 320)
-frame.Position = UDim2.new(0.5, -165, 0.5, -160)
+frame.Size = UDim2.fromOffset(370, 540)
+frame.Position = UDim2.new(0.5, -185, 0.5, -270)
 frame.BackgroundColor3 = Color3.fromRGB(20, 30, 55)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -125,170 +126,207 @@ corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = frame
 
 local function make(class, props)
-	local obj = Instance.new(class)
-
-	for key, value in pairs(props) do
-		obj[key] = value
-	end
-
-	return obj
+    local obj = Instance.new(class)
+    for key, value in pairs(props) do
+        obj[key] = value
+    end
+    return obj
 end
 
 make("TextLabel", {
-	Parent = frame,
-	Size = UDim2.new(1, -100, 0, 38),
-	Position = UDim2.fromOffset(12, 0),
-	BackgroundTransparency = 1,
-	Text = "TELEPORT TESTER",
-	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBold,
-	TextSize = 14,
-	TextXAlignment = Enum.TextXAlignment.Left
+    Parent = frame,
+    Size = UDim2.new(1, -100, 0, 38),
+    Position = UDim2.fromOffset(12, 0),
+    BackgroundTransparency = 1,
+    Text = "TELEPORT TESTER",
+    TextColor3 = Color3.new(1, 1, 1),
+    Font = Enum.Font.GothamBold,
+    TextSize = 14,
+    TextXAlignment = Enum.TextXAlignment.Left
 })
 
 local toggle = make("TextButton", {
-	Parent = frame,
-	Size = UDim2.fromOffset(65, 28),
-	Position = UDim2.new(1, -77, 0, 6),
-	BackgroundColor3 = Color3.fromRGB(160, 55, 55),
-	Text = "OFF",
-	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBold,
-	TextSize = 13
+    Parent = frame,
+    Size = UDim2.fromOffset(65, 28),
+    Position = UDim2.new(1, -77, 0, 6),
+    BackgroundColor3 = Color3.fromRGB(160, 55, 55),
+    Text = "OFF",
+    TextColor3 = Color3.new(1, 1, 1),
+    Font = Enum.Font.GothamBold,
+    TextSize = 13
 })
 
 local nameBox = make("TextBox", {
-	Parent = frame,
-	Size = UDim2.new(1, -24, 0, 36),
-	Position = UDim2.fromOffset(12, 45),
-	BackgroundColor3 = Color3.fromRGB(35, 55, 85),
-	PlaceholderText = "Target player name",
-	Text = "",
-	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.Gotham,
-	TextSize = 13,
-	ClearTextOnFocus = false
+    Parent = frame,
+    Size = UDim2.new(1, -24, 0, 36),
+    Position = UDim2.fromOffset(12, 45),
+    BackgroundColor3 = Color3.fromRGB(35, 55, 85),
+    PlaceholderText = "Target player name",
+    Text = "",
+    TextColor3 = Color3.new(1, 1, 1),
+    Font = Enum.Font.Gotham,
+    TextSize = 13,
+    ClearTextOnFocus = false
 })
 
 --==================================================
--- SLIDERS
+-- SLIDER CREATOR
 --==================================================
 
 local function createSlider(y, labelText, initialValue, callback)
-	local label = make("TextLabel", {
-		Parent = frame,
-		Size = UDim2.new(1, -24, 0, 24),
-		Position = UDim2.fromOffset(12, y),
-		BackgroundTransparency = 1,
-		Text = labelText .. ": " .. initialValue .. " ms",
-		TextColor3 = Color3.new(1, 1, 1),
-		Font = Enum.Font.Gotham,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left
-	})
+    local label = make("TextLabel", {
+        Parent = frame,
+        Size = UDim2.new(1, -24, 0, 22),
+        Position = UDim2.fromOffset(12, y),
+        BackgroundTransparency = 1,
+        Text = labelText .. ": " .. initialValue .. " ms",
+        TextColor3 = Color3.new(1, 1, 1),
+        Font = Enum.Font.Gotham,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
 
-	local bar = make("Frame", {
-		Parent = frame,
-		Size = UDim2.new(1, -40, 0, 10),
-		Position = UDim2.fromOffset(20, y + 30),
-		BackgroundColor3 = Color3.fromRGB(55, 75, 110),
-		BorderSizePixel = 0
-	})
+    local bar = make("Frame", {
+        Parent = frame,
+        Size = UDim2.new(1, -40, 0, 10),
+        Position = UDim2.fromOffset(20, y + 27),
+        BackgroundColor3 = Color3.fromRGB(55, 75, 110),
+        BorderSizePixel = 0
+    })
 
-	local fill = make("Frame", {
-		Parent = bar,
-		Size = UDim2.new(0, 0, 1, 0),
-		BackgroundColor3 = Color3.fromRGB(75, 145, 255),
-		BorderSizePixel = 0
-	})
+    local fill = make("Frame", {
+        Parent = bar,
+        Size = UDim2.new(initialValue / 10000, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(75, 145, 255),
+        BorderSizePixel = 0
+    })
 
-	local knob = make("TextButton", {
-		Parent = bar,
-		Size = UDim2.fromOffset(18, 18),
-		Position = UDim2.new(0, -9, 0.5, -9),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		Text = "",
-		AutoButtonColor = false
-	})
+    local knob = make("TextButton", {
+        Parent = bar,
+        Size = UDim2.fromOffset(18, 18),
+        Position = UDim2.new(initialValue / 10000, -9, 0.5, -9),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        Text = "",
+        AutoButtonColor = false
+    })
 
-	local dragging = false
-	local maxValue = 10000
+    local dragging = false
 
-	local function update(x)
-		if not isCurrent() then return end
+    local function update(x)
+        if not isCurrent() then return end
 
-		local width = math.max(bar.AbsoluteSize.X, 1)
-		local ratio = math.clamp(
-			(x - bar.AbsolutePosition.X) / width,
-			0,
-			1
-		)
+        local width = math.max(bar.AbsoluteSize.X, 1)
+        local ratio = math.clamp(
+            (x - bar.AbsolutePosition.X) / width,
+            0,
+            1
+        )
 
-		local value = math.floor(ratio * maxValue)
+        local value = math.floor(ratio * 10000)
 
-		fill.Size = UDim2.new(ratio, 0, 1, 0)
-		knob.Position = UDim2.new(ratio, -9, 0.5, -9)
+        fill.Size = UDim2.new(ratio, 0, 1, 0)
+        knob.Position = UDim2.new(ratio, -9, 0.5, -9)
 
-		label.Text = labelText .. ": " .. value .. " ms"
-		callback(value)
-	end
+        label.Text = labelText .. ": " .. value .. " ms"
+        callback(value)
+    end
 
-	track(knob.MouseButton1Down:Connect(function()
-		dragging = true
-	end))
+    track(knob.MouseButton1Down:Connect(function()
+        dragging = true
+    end))
 
-	track(bar.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			update(input.Position.X)
-		end
-	end))
+    track(bar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            update(input.Position.X)
+        end
+    end))
 
-	track(UIS.InputChanged:Connect(function(input)
-		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			update(input.Position.X)
-		end
-	end))
+    track(UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            update(input.Position.X)
+        end
+    end))
 
-	track(UIS.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
-		end
-	end))
+    track(UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end))
 end
 
-createSlider(95, "Teleport delay", teleportDelay, function(value)
-	teleportDelay = value
+--==================================================
+-- LEFT CLICK SETTINGS
+--==================================================
+
+make("TextLabel", {
+    Parent = frame,
+    Size = UDim2.new(1, -24, 0, 22),
+    Position = UDim2.fromOffset(12, 91),
+    BackgroundTransparency = 1,
+    Text = "LEFT CLICK SETTINGS",
+    TextColor3 = Color3.fromRGB(100, 175, 255),
+    Font = Enum.Font.GothamBold,
+    TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createSlider(116, "Click teleport delay", clickDelay, function(v)
+    clickDelay = v
 end)
 
-createSlider(165, "Stay duration", stayDuration, function(value)
-	stayDuration = math.max(1, value)
+createSlider(163, "Click stay duration", clickStay, function(v)
+    clickStay = v
 end)
 
 --==================================================
--- STATUS + TOGGLE
+-- R KEY SETTINGS
+--==================================================
+
+make("TextLabel", {
+    Parent = frame,
+    Size = UDim2.new(1, -24, 0, 22),
+    Position = UDim2.fromOffset(12, 215),
+    BackgroundTransparency = 1,
+    Text = "R KEY SETTINGS",
+    TextColor3 = Color3.fromRGB(100, 175, 255),
+    Font = Enum.Font.GothamBold,
+    TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+createSlider(240, "R teleport delay", rDelay, function(v)
+    rDelay = v
+end)
+
+createSlider(287, "R stay duration", rStay, function(v)
+    rStay = math.max(1, v)
+end)
+
+--==================================================
+-- STATUS
 --==================================================
 
 local status = make("TextLabel", {
-	Parent = frame,
-	Size = UDim2.new(1, -24, 0, 25),
-	Position = UDim2.fromOffset(12, 245),
-	BackgroundTransparency = 1,
-	Text = "Status: OFF",
-	TextColor3 = Color3.fromRGB(180, 195, 220),
-	Font = Enum.Font.Gotham,
-	TextSize = 12
+    Parent = frame,
+    Size = UDim2.new(1, -24, 0, 25),
+    Position = UDim2.fromOffset(12, 340),
+    BackgroundTransparency = 1,
+    Text = "Status: OFF",
+    TextColor3 = Color3.fromRGB(180, 195, 220),
+    Font = Enum.Font.Gotham,
+    TextSize = 12
 })
 
 track(toggle.MouseButton1Click:Connect(function()
-	enabled = not enabled
+    enabled = not enabled
 
-	toggle.Text = enabled and "ON" or "OFF"
-	toggle.BackgroundColor3 = enabled
-		and Color3.fromRGB(35, 145, 95)
-		or Color3.fromRGB(160, 55, 55)
+    toggle.Text = enabled and "ON" or "OFF"
+    toggle.BackgroundColor3 = enabled
+        and Color3.fromRGB(35, 145, 95)
+        or Color3.fromRGB(160, 55, 55)
 
-	status.Text = enabled and "Status: ACTIVE | R / CLICK" or "Status: OFF"
+    status.Text = enabled and "Status: ACTIVE" or "Status: OFF"
 end))
 
 --==================================================
@@ -296,117 +334,107 @@ end))
 --==================================================
 
 local function getEquippedTool()
-	local character = player.Character
-	if not character then return nil end
+    local character = player.Character
+    if not character then return nil end
 
-	for _, item in ipairs(character:GetChildren()) do
-		if item:IsA("Tool") and allowedTools[item.Name] then
-			return item
-		end
-	end
+    for _, item in ipairs(character:GetChildren()) do
+        if item:IsA("Tool") and allowedTools[item.Name] then
+            return item
+        end
+    end
 
-	return nil
+    return nil
 end
 
 local function findTarget(query)
-	query = string.lower(query)
+    query = string.lower(query)
+    if query == "" then return nil end
 
-	if query == "" then return nil end
+    for _, candidate in ipairs(Players:GetPlayers()) do
+        if candidate ~= player
+            and string.sub(string.lower(candidate.Name), 1, #query) == query then
+            return candidate
+        end
+    end
 
-	for _, candidate in ipairs(Players:GetPlayers()) do
-		if candidate ~= player
-			and string.sub(string.lower(candidate.Name), 1, #query) == query then
-			return candidate
-		end
-	end
-
-	return nil
+    return nil
 end
 
 --==================================================
 -- TELEPORT CYCLE
 --==================================================
 
-local function teleportCycle()
-	if not isCurrent() or not enabled or busy then
-		return
-	end
+local function teleportCycle(delayValue, stayValue, activationName)
+    if not isCurrent() or not enabled or busy then return end
+    if not getEquippedTool() then return end
 
-	if not getEquippedTool() then
-		return
-	end
+    local query = nameBox.Text
+    if query == "" then
+        status.Text = "Enter a target name"
+        return
+    end
 
-	local query = nameBox.Text
+    local target = findTarget(query)
+    if not target then
+        status.Text = "Player not found"
+        return
+    end
 
-	if query == "" then
-		status.Text = "Enter a target name"
-		return
-	end
+    busy = true
+    status.Text = activationName .. ": waiting..."
 
-	local target = findTarget(query)
+    task.wait(delayValue / 1000)
 
-	if not target then
-		status.Text = "Player not found"
-		return
-	end
+    if not isCurrent() then return end
 
-	busy = true
+    local character = player.Character
+    local targetCharacter = target.Character
 
-	local delayAtStart = teleportDelay
-	local stayAtStart = stayDuration
+    if not character or not targetCharacter then
+        status.Text = "Character unavailable"
+        busy = false
+        return
+    end
 
-	status.Text = "Waiting " .. delayAtStart .. " ms..."
+    local root = character:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
 
-	task.wait(delayAtStart / 1000)
+    if not root or not targetRoot then
+        status.Text = "Root part unavailable"
+        busy = false
+        return
+    end
 
-	if not isCurrent() then return end
+    local originalCFrame = root.CFrame
 
-	local character = player.Character
-	local targetCharacter = target.Character
+    -- Behind and slightly to target's right.
+    local destination = targetRoot.CFrame:PointToWorldSpace(
+        Vector3.new(1.5, 0, 3)
+    )
 
-	if not character or not targetCharacter then
-		status.Text = "Character unavailable"
-		busy = false
-		return
-	end
+    -- Face toward the middle of the target's torso.
+    local torso = targetCharacter:FindFirstChild("UpperTorso")
+        or targetCharacter:FindFirstChild("Torso")
+        or targetRoot
 
-	local root = character:FindFirstChild("HumanoidRootPart")
-	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+    root.CFrame = CFrame.lookAt(
+        destination,
+        torso.Position,
+        targetRoot.CFrame.UpVector
+    )
 
-	if not root or not targetRoot then
-		status.Text = "Root part unavailable"
-		busy = false
-		return
-	end
+    status.Text = activationName .. ": at " .. target.Name
 
-	local originalCFrame = root.CFrame
+    task.wait(stayValue / 1000)
 
-	-- Position behind and slightly to the target's right.
-	local destination = targetRoot.CFrame:PointToWorldSpace(
-		Vector3.new(SIDE_OFFSET, 0, BACK_OFFSET)
-	)
+    if not isCurrent() then return end
 
-	-- Face the target's torso from that position.
-	local facingCFrame = CFrame.lookAt(
-		destination,
-		targetRoot.Position,
-		targetRoot.CFrame.UpVector
-	)
+    if root.Parent and player.Character == character then
+        root.CFrame = originalCFrame
+    end
 
-	root.CFrame = facingCFrame
-
-	status.Text = "Behind " .. target.Name
-
-	task.wait(stayAtStart / 1000)
-
-	if not isCurrent() then return end
-
-	if root.Parent and player.Character == character then
-		root.CFrame = originalCFrame
-	end
-
-	status.Text = "Returned to original position"
-	busy = false
+    status.Text = activationName .. ": returned"
+    busy = false
 end
 
 --==================================================
@@ -416,32 +444,32 @@ end
 local boundTools = {}
 
 local function bindTool(tool)
-	if not tool:IsA("Tool") then return end
-	if not allowedTools[tool.Name] then return end
-	if boundTools[tool] then return end
+    if not tool:IsA("Tool") then return end
+    if not allowedTools[tool.Name] then return end
+    if boundTools[tool] then return end
 
-	boundTools[tool] = true
+    boundTools[tool] = true
 
-	track(tool.Activated:Connect(function()
-		teleportCycle()
-	end))
+    track(tool.Activated:Connect(function()
+        teleportCycle(clickDelay, clickStay, "CLICK")
+    end))
 end
 
 local function bindCharacter(character)
-	for _, child in ipairs(character:GetChildren()) do
-		bindTool(child)
-	end
+    for _, child in ipairs(character:GetChildren()) do
+        bindTool(child)
+    end
 
-	track(character.ChildAdded:Connect(bindTool))
+    track(character.ChildAdded:Connect(bindTool))
 end
 
 if player.Character then
-	bindCharacter(player.Character)
+    bindCharacter(player.Character)
 end
 
 track(player.CharacterAdded:Connect(function(character)
-	boundTools = {}
-	bindCharacter(character)
+    boundTools = {}
+    bindCharacter(character)
 end))
 
 --==================================================
@@ -449,14 +477,14 @@ end))
 --==================================================
 
 track(UIS.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if UIS:GetFocusedTextBox() then return end
+    if gameProcessed then return end
+    if UIS:GetFocusedTextBox() then return end
 
-	if input.KeyCode == Enum.KeyCode.R then
-		if getEquippedTool() then
-			teleportCycle()
-		end
-	end
+    if input.KeyCode == Enum.KeyCode.R then
+        if getEquippedTool() then
+            teleportCycle(rDelay, rStay, "R KEY")
+        end
+    end
 end))
 
 --==================================================
@@ -464,7 +492,7 @@ end))
 --==================================================
 
 track(playerGui.ChildRemoved:Connect(function(child)
-	if child == gui then
-		cleanup()
-	end
+    if child == gui then
+        cleanup()
+    end
 end))
